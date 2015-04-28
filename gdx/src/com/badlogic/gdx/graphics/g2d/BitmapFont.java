@@ -166,7 +166,7 @@ public class BitmapFont implements Disposable {
 			ownsTexture = false;
 		}
 
-		cache = new BitmapFontCache(this, integer);
+		cache = newFontCache();
 
 		this.flipped = data.flipped;
 		this.data = data;
@@ -365,6 +365,15 @@ public class BitmapFont implements Disposable {
 	 * @param ownsTexture whether the font owns the texture */
 	public void setOwnsTexture (boolean ownsTexture) {
 		this.ownsTexture = ownsTexture;
+	}
+
+	/** Creates a new BitmapFontCache for this font. Using this method allows the font to provide the BitmapFontCache implementation
+	 * to customize rendering.
+	 * <p>
+	 * Note this method is called by the BitmapFont constructors. If a subclass overrides this method, it will be called before the
+	 * subclass constructors. */
+	public BitmapFontCache newFontCache () {
+		return new BitmapFontCache(this, integer);
 	}
 
 	public String toString () {
@@ -591,7 +600,8 @@ public class BitmapFont implements Disposable {
 					spaceGlyph.xadvance = xadvanceGlyph.xadvance;
 					setGlyph(' ', spaceGlyph);
 				}
-				spaceWidth = spaceGlyph != null ? spaceGlyph.xadvance + spaceGlyph.width : 1;
+				if (spaceGlyph.width == 0) spaceGlyph.width = spaceGlyph.xoffset + spaceGlyph.xadvance;
+				spaceWidth = spaceGlyph != null ? spaceGlyph.width : 1;
 
 				Glyph xGlyph = null;
 				for (int i = 0; i < xChars.length; i++) {
@@ -631,8 +641,9 @@ public class BitmapFont implements Disposable {
 		}
 
 		public void setGlyphRegion (Glyph glyph, TextureRegion region) {
-			float invTexWidth = 1.0f / region.getTexture().getWidth();
-			float invTexHeight = 1.0f / region.getTexture().getHeight();
+			Texture texture = region.getTexture();
+			float invTexWidth = 1.0f / texture.getWidth();
+			float invTexHeight = 1.0f / texture.getHeight();
 
 			float offsetX = 0, offsetY = 0;
 			float u = region.u;
@@ -743,17 +754,20 @@ public class BitmapFont implements Disposable {
 				if (glyph == null) continue;
 				glyphs.add(glyph);
 
-				if (lastGlyph != null) xAdvances.add((lastGlyph.xadvance + lastGlyph.getKerning(ch)) * scaleX);
+				if (lastGlyph == null)
+					xAdvances.add(-glyph.xoffset * scaleX); // First glyph.
+				else
+					xAdvances.add((lastGlyph.xadvance + lastGlyph.getKerning(ch)) * scaleX);
 				lastGlyph = glyph;
 
 				// "[[" is an escaped left square bracket, skip second character.
 				if (markupEnabled && ch == '[' && start < end && str.charAt(start) == '[') start++;
 			}
-			if (lastGlyph != null) xAdvances.add(lastGlyph.xadvance * scaleX);
+			if (lastGlyph != null) xAdvances.add((lastGlyph.xoffset + lastGlyph.width) * scaleX);
 		}
 
-		/** Returns the first valid glyph index to use to wrap to the next line, starting at the specified start index and moving
-		 * toward the beginning of the glyphs array. */
+		/** Returns the first valid glyph index to use to wrap to the next line, starting at the specified start index and
+		 * (typically) moving toward the beginning of the glyphs array. */
 		public int getWrapIndex (Array<Glyph> glyphs, int start) {
 			char ch = (char)glyphs.get(start).id;
 			if (isWhitespace(ch)) return start + 1;
@@ -762,7 +776,7 @@ public class BitmapFont implements Disposable {
 				if (isWhitespace(ch)) return i + 1;
 				if (isBreakChar(ch)) return i;
 			}
-			return start;
+			return 0;
 		}
 
 		public boolean isBreakChar (char c) {
