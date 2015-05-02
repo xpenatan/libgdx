@@ -288,7 +288,22 @@ public class Table extends WidgetGroup {
 	public boolean removeActor (Actor actor, boolean unfocus) {
 		if (!super.removeActor(actor, unfocus)) return false;
 		Cell cell = getCell(actor);
-		if (cell != null) cell.actor = null;
+		if (cell != null){
+			cell.actor = null;
+			cells.removeValue(cell, true);
+			cellPool.free(cell);
+			
+			int cellCount = cells.size;
+			
+			if(cellCount > 0)
+			{
+				cells.get(0).cellAboveIndex = -1;
+				for(int i = 1; i < cellCount;i++)
+				{
+					cells.get(i).cellAboveIndex = i-1;
+				}
+			}
+		}
 		return true;
 	}
 

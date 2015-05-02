@@ -51,7 +51,7 @@ public class Lwjgl3ApplicationConfiguration {
 	/** used to emulate screen densities **/
 	public int overrideDensity = -1;
 	/** whether to enable vsync, can be changed at runtime via {@link Graphics#setVSync(boolean)} **/
-	public boolean vSyncEnabled = true;
+	public boolean vSyncEnabled = false;
 	/** title of application **/
 	public String title;
 	/** whether the window is resizable **/

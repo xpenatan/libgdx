@@ -29,7 +29,6 @@ import static org.lwjgl.openal.AL10.alDeleteSources;
 import static org.lwjgl.openal.AL10.alGenSources;
 import static org.lwjgl.openal.AL10.alGetError;
 import static org.lwjgl.openal.AL10.alGetSourcei;
-import static org.lwjgl.openal.AL10.alListener;
 import static org.lwjgl.openal.AL10.alSourcePause;
 import static org.lwjgl.openal.AL10.alSourcePlay;
 import static org.lwjgl.openal.AL10.alSourceStop;
@@ -114,11 +113,11 @@ public class OpenALAudio implements Audio {
 
 		FloatBuffer orientation = (FloatBuffer)BufferUtils.createFloatBuffer(6)
 			.put(new float[] {0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f}).flip();
-		alListener(AL_ORIENTATION, orientation);
+		AL10.alListenerfv(AL_ORIENTATION, orientation);
 		FloatBuffer velocity = (FloatBuffer)BufferUtils.createFloatBuffer(3).put(new float[] {0.0f, 0.0f, 0.0f}).flip();
-		alListener(AL_VELOCITY, velocity);
+		AL10.alListenerfv(AL_VELOCITY, velocity);
 		FloatBuffer position = (FloatBuffer)BufferUtils.createFloatBuffer(3).put(new float[] {0.0f, 0.0f, 0.0f}).flip();
-		alListener(AL_POSITION, position);
+		AL10.alListenerfv(AL_POSITION, position);
 		
 		recentSounds = new OpenALSound[simultaneousSources];
 	}

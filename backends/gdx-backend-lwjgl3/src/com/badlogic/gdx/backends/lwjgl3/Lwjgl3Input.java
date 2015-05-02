@@ -881,7 +881,7 @@ public class Lwjgl3Input implements Input {
 				public void invoke (long window, double xpos, double ypos) {
 					mouseX = (int)xpos;
 					mouseY = (int)ypos;
-					
+					System.out.println("PAS");
 					if (pressedButtons.size > 0)
 						processor.touchDragged(mouseX, mouseY, 0);
 					else
