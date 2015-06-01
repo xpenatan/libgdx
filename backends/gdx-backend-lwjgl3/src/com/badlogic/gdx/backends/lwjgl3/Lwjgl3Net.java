@@ -65,4 +65,10 @@ public class Lwjgl3Net implements Net {
 		}
 		return true;
 	}
+
+	@Override
+	public ServerSocket newServerSocket (Protocol protocol, String hostname, int port, ServerSocketHints hints) {
+		
+		return null;
+	}
 }
