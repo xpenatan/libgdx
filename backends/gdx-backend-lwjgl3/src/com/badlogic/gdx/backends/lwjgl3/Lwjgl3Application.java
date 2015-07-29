@@ -258,9 +258,16 @@ public class Lwjgl3Application implements Application {
 			net = new Lwjgl3Net();
 			Gdx.net = net;
 		}
-		if (Gdx.audio == null) {
-			audio = new OpenALAudio(audioDeviceSimultaneousSources, audioDeviceBufferCount, audioDeviceBufferSize);
-			Gdx.audio = audio;
+		if (!Lwjgl3ApplicationConfiguration.disableAudio) {
+			try {
+				if (Gdx.audio == null) {
+					audio = new OpenALAudio(audioDeviceSimultaneousSources, audioDeviceBufferCount, audioDeviceBufferSize);
+					Gdx.audio = audio;
+				}
+			} catch (Throwable t) {
+				log("Lwjgl3Application", "Couldn't initialize audio, disabling audio", t);
+				Lwjgl3ApplicationConfiguration.disableAudio = true;				
+			}
 		}
 	}
 
