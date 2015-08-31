@@ -256,9 +256,9 @@ public class TextField extends Widget implements Disableable {
 			selectionWidth = maxX - minX - style.font.getData().cursorX;
 		}
 
-		if (textHAlign == Align.center || textHAlign == Align.right) {
+		if ((textHAlign & Align.left) == 0) {
 			textOffset = visibleWidth - (glyphPositions[visibleTextEnd] - startPos);
-			if (textHAlign == Align.center) textOffset = Math.round(textOffset * 0.5f);
+			if ((textHAlign & Align.center) != 0) textOffset = Math.round(textOffset * 0.5f);
 			if (hasSelection) selectionX += textOffset;
 		}
 	}
@@ -430,6 +430,8 @@ public class TextField extends Widget implements Disableable {
 		if (content == null) return;
 		StringBuilder buffer = new StringBuilder();
 		int textLength = text.length();
+		if (hasSelection)
+			textLength -= Math.abs(cursor - selectionStart);
 		BitmapFontData data = style.font.getData();
 		for (int i = 0, n = content.length(); i < n; i++) {
 			if (!withinMaxLength(textLength + buffer.length())) break;
@@ -668,7 +670,7 @@ public class TextField extends Widget implements Disableable {
 	/** Sets text horizontal alignment (left, center or right).
 	 * @see Align */
 	public void setAlignment (int alignment) {
-		if (alignment == Align.left || alignment == Align.center || alignment == Align.right) this.textHAlign = alignment;
+		this.textHAlign = alignment;
 	}
 
 	/** If true, the text in this text field will be shown as bullet characters.
