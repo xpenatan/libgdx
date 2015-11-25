@@ -17,6 +17,7 @@
 package com.badlogic.gdx.utils;
 
 import com.badlogic.gdx.Application;
+import com.badlogic.gdx.Files;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.LifecycleListener;
 
@@ -59,7 +60,8 @@ public class Timer {
 		return scheduleTask(task, delaySeconds, intervalSeconds, FOREVER);
 	}
 
-	/** Schedules a task to occur once after the specified delay and then a number of additional times at the specified interval. */
+	/** Schedules a task to occur once after the specified delay and then a number of additional times at the specified
+	 * interval. */
 	public Task scheduleTask (Task task, float delaySeconds, float intervalSeconds, int repeatCount) {
 		if (task.repeatCount != CANCELLED) throw new IllegalArgumentException("The same task may not be scheduled twice.");
 		task.executeTimeMillis = System.nanoTime() / 1000000 + (long)(delaySeconds * 1000);
@@ -69,7 +71,7 @@ public class Timer {
 			tasks.add(task);
 		}
 		wake();
-		
+
 		return task;
 	}
 
@@ -112,7 +114,7 @@ public class Timer {
 						// Set cancelled before run so it may be rescheduled in run.
 						task.repeatCount = CANCELLED;
 					}
-					Gdx.app.postRunnable(task);
+					task.app.postRunnable(task);
 				}
 				if (task.repeatCount == CANCELLED) {
 					tasks.removeIndex(i);
@@ -175,8 +177,10 @@ public class Timer {
 		long executeTimeMillis;
 		long intervalMillis;
 		int repeatCount = CANCELLED;
+		Application app = Gdx.app; // Need to store the app when the task was created for multiple LwjglAWTCanvas.
 
-		/** If this is the last time the task will be ran or the task is first cancelled, it may be scheduled again in this method. */
+		/** If this is the last time the task will be ran or the task is first cancelled, it may be scheduled again in this
+		 * method. */
 		abstract public void run ();
 
 		/** Cancels the task. It will not be executed until it is scheduled again. This method can be called at any time. */
@@ -199,7 +203,7 @@ public class Timer {
 	/** Manages the single timer thread. Stops thread on libgdx application pause and dispose, starts thread on resume.
 	 * @author Nathan Sweet */
 	static class TimerThread implements Runnable, LifecycleListener {
-		Application app;
+		Files files;
 		private long pauseMillis;
 
 		public TimerThread () {
@@ -210,7 +214,7 @@ public class Timer {
 		public void run () {
 			while (true) {
 				synchronized (instances) {
-					if (app != Gdx.app) return;
+					if (files != Gdx.files) return;
 
 					long timeMillis = System.nanoTime() / 1000000;
 					long waitMillis = 5000;
@@ -222,7 +226,7 @@ public class Timer {
 						}
 					}
 
-					if (app != Gdx.app) return;
+					if (files != Gdx.files) return;
 
 					try {
 						if (waitMillis > 0) instances.wait(waitMillis);
@@ -239,7 +243,7 @@ public class Timer {
 					instances.get(i).delay(delayMillis);
 				}
 			}
-			app = Gdx.app;
+			files = Gdx.files;
 			Thread t = new Thread(this, "Timer");
 			t.setDaemon(true);
 			t.start();
@@ -249,7 +253,7 @@ public class Timer {
 		public void pause () {
 			pauseMillis = System.nanoTime() / 1000000;
 			synchronized (instances) {
-				app = null;
+				files = null;
 				wake();
 			}
 			thread = null;

@@ -65,19 +65,19 @@ public class BitmapFont implements Disposable {
 	boolean integer;
 	private boolean ownsTexture;
 
-	/** Creates a BitmapFont using the default 15pt Arial font included in the libgdx JAR file. This is convenient to easily display
-	 * text without bothering without generating a bitmap font yourself. */
+	/** Creates a BitmapFont using the default 15pt Arial font included in the libgdx JAR file. This is convenient to easily
+	 * display text without bothering without generating a bitmap font yourself. */
 	public BitmapFont () {
-		this(Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.fnt"),
-			Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.png"), false, true);
+		this(Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.fnt"), Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.png"),
+			false, true);
 	}
 
-	/** Creates a BitmapFont using the default 15pt Arial font included in the libgdx JAR file. This is convenient to easily display
-	 * text without bothering without generating a bitmap font yourself.
+	/** Creates a BitmapFont using the default 15pt Arial font included in the libgdx JAR file. This is convenient to easily
+	 * display text without bothering without generating a bitmap font yourself.
 	 * @param flip If true, the glyphs will be flipped for use with a perspective where 0,0 is the upper left corner. */
 	public BitmapFont (boolean flip) {
-		this(Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.fnt"),
-			Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.png"), flip, true);
+		this(Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.fnt"), Gdx.files.classpath("com/badlogic/gdx/utils/arial-15.png"),
+			flip, true);
 	}
 
 	/** Creates a BitmapFont with the glyphs relative to the specified region. If the region is null, the glyph textures are loaded
@@ -202,7 +202,7 @@ public class BitmapFont implements Disposable {
 	}
 
 	/** Draws text at the specified position.
-	 * @see BitmapFontCache#addText(CharSequence, float, float, int, int, float, int, boolean) */
+	 * @see BitmapFontCache#addText(CharSequence, float, float, int, int, float, int, boolean, String) */
 	public GlyphLayout draw (Batch batch, CharSequence str, float x, float y, float targetWidth, int halign, boolean wrap) {
 		cache.clear();
 		GlyphLayout layout = cache.addText(str, x, y, targetWidth, halign, wrap);
@@ -211,7 +211,7 @@ public class BitmapFont implements Disposable {
 	}
 
 	/** Draws text at the specified position.
-	 * @see BitmapFontCache#addText(CharSequence, float, float, int, int, float, int, boolean) */
+	 * @see BitmapFontCache#addText(CharSequence, float, float, int, int, float, int, boolean, String) */
 	public GlyphLayout draw (Batch batch, CharSequence str, float x, float y, int start, int end, float targetWidth, int halign,
 		boolean wrap) {
 		cache.clear();
@@ -221,7 +221,17 @@ public class BitmapFont implements Disposable {
 	}
 
 	/** Draws text at the specified position.
-	 * @see BitmapFontCache#addText(CharSequence, float, float, int, int, float, int, boolean) */
+	 * @see BitmapFontCache#addText(CharSequence, float, float, int, int, float, int, boolean, String) */
+	public GlyphLayout draw (Batch batch, CharSequence str, float x, float y, int start, int end, float targetWidth, int halign,
+		boolean wrap, String truncate) {
+		cache.clear();
+		GlyphLayout layout = cache.addText(str, x, y, start, end, targetWidth, halign, wrap, truncate);
+		cache.draw(batch);
+		return layout;
+	}
+
+	/** Draws text at the specified position.
+	 * @see BitmapFontCache#addText(CharSequence, float, float, int, int, float, int, boolean, String) */
 	public void draw (Batch batch, GlyphLayout layout, float x, float y) {
 		cache.clear();
 		cache.addText(layout, x, y);
@@ -296,8 +306,8 @@ public class BitmapFont implements Disposable {
 		return data.ascent;
 	}
 
-	/** Returns the descent, which is the distance from the bottom of the glyph that extends the lowest to the baseline. This number
-	 * is negative. */
+	/** Returns the descent, which is the distance from the bottom of the glyph that extends the lowest to the baseline. This
+	 * number is negative. */
 	public float getDescent () {
 		return data.descent;
 	}
@@ -330,6 +340,7 @@ public class BitmapFont implements Disposable {
 			g.xoffset += Math.round((maxAdvance - g.xadvance) / 2);
 			g.xadvance = maxAdvance;
 			g.kerning = null;
+			g.fixedWidth = true;
 		}
 	}
 
@@ -368,8 +379,8 @@ public class BitmapFont implements Disposable {
 		this.ownsTexture = ownsTexture;
 	}
 
-	/** Creates a new BitmapFontCache for this font. Using this method allows the font to provide the BitmapFontCache implementation
-	 * to customize rendering.
+	/** Creates a new BitmapFontCache for this font. Using this method allows the font to provide the BitmapFontCache
+	 * implementation to customize rendering.
 	 * <p>
 	 * Note this method is called by the BitmapFont constructors. If a subclass overrides this method, it will be called before the
 	 * subclass constructors. */
@@ -392,6 +403,7 @@ public class BitmapFont implements Disposable {
 		public int xoffset, yoffset;
 		public int xadvance;
 		public byte[][] kerning;
+		public boolean fixedWidth;
 
 		/** The index to the texture page that holds this glyph. */
 		public int page = 0;
@@ -442,8 +454,8 @@ public class BitmapFont implements Disposable {
 		public float down;
 		public float scaleX = 1, scaleY = 1;
 		public boolean markupEnabled;
-		/** The amount to add to the glyph X position when drawing a cursor between glyphs. This field is not set by the BMFont file,
-		 * it needs to be set manually depending on how the glyphs are rendered on the backing textures. */
+		/** The amount to add to the glyph X position when drawing a cursor between glyphs. This field is not set by the BMFont
+		 * file, it needs to be set manually depending on how the glyphs are rendered on the backing textures. */
 		public float cursorX;
 
 		public final Glyph[][] glyphs = new Glyph[PAGES][];
@@ -623,16 +635,16 @@ public class BitmapFont implements Disposable {
 				spaceWidth = spaceGlyph.width;
 
 				Glyph xGlyph = null;
-				for (int i = 0; i < xChars.length; i++) {
-					xGlyph = getGlyph(xChars[i]);
+				for (char xChar : xChars) {
+					xGlyph = getGlyph(xChar);
 					if (xGlyph != null) break;
 				}
 				if (xGlyph == null) xGlyph = getFirstGlyph();
 				xHeight = xGlyph.height - padY;
 
 				Glyph capGlyph = null;
-				for (int i = 0; i < capChars.length; i++) {
-					capGlyph = getGlyph(capChars[i]);
+				for (char capChar : capChars) {
+					capGlyph = getGlyph(capChar);
 					if (capGlyph != null) break;
 				}
 				if (capGlyph == null) {
@@ -774,8 +786,8 @@ public class BitmapFont implements Disposable {
 				if (glyph == null) continue;
 				glyphs.add(glyph);
 
-				if (lastGlyph == null)
-					xAdvances.add(-glyph.xoffset * scaleX - padLeft); // First glyph.
+				if (lastGlyph == null) // First glyph.
+					xAdvances.add(glyph.fixedWidth ? 0 : -glyph.xoffset * scaleX - padLeft);
 				else
 					xAdvances.add((lastGlyph.xadvance + lastGlyph.getKerning(ch)) * scaleX);
 				lastGlyph = glyph;
@@ -783,7 +795,10 @@ public class BitmapFont implements Disposable {
 				// "[[" is an escaped left square bracket, skip second character.
 				if (markupEnabled && ch == '[' && start < end && str.charAt(start) == '[') start++;
 			}
-			if (lastGlyph != null) xAdvances.add((lastGlyph.xoffset + lastGlyph.width) * scaleX - padRight);
+			if (lastGlyph != null) {
+				int lastGlyphWidth = lastGlyph.fixedWidth ? lastGlyph.xadvance : lastGlyph.xoffset + lastGlyph.width;
+				xAdvances.add(lastGlyphWidth * scaleX - padRight);
+			}
 		}
 
 		/** Returns the first valid glyph index to use to wrap to the next line, starting at the specified start index and

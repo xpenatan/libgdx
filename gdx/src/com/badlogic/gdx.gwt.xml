@@ -222,6 +222,7 @@
 		<include name="graphics/glutils/FrameBuffer.java"/>
 		<include name="graphics/glutils/FrameBufferCubemap.java"/>
 		<include name="graphics/glutils/GLFrameBuffer.java"/>
+		<include name="graphics/glutils/GLOnlyTextureData.java"/>
 		<include name="graphics/glutils/ImmediateModeRenderer.java"/>
 		<include name="graphics/glutils/ImmediateModeRenderer10.java"/>
 		<include name="graphics/glutils/ImmediateModeRenderer20.java"/>
@@ -412,6 +413,7 @@
 		<include name="utils/Pools.java"/>
 		<include name="utils/Predicate.java"/>
 		<include name="utils/PropertiesUtils.java"/>
+		<include name="utils/Queue.java"/>
 		<include name="utils/QuickSelect.java"/>
 		<include name="utils/ReflectionPool.java"/>
 		<include name="utils/Scaling.java"/>
