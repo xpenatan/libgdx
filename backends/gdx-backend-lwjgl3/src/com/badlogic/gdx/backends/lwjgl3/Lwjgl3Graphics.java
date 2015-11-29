@@ -409,7 +409,6 @@ public class Lwjgl3Graphics implements Graphics {
 
 	public void show () {
 		visible = true;
-		System.out.println("Show");
 		Lwjgl3WindowController.currentWindow = window;
 // glfwShowWindow(window);
 
