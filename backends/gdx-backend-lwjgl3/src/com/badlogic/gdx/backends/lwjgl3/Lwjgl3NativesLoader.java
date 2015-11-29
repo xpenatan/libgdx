@@ -53,13 +53,18 @@ public final class Lwjgl3NativesLoader {
 			if (isWindows) {
 				File myFile = loader.extractFile(is64Bit ? "windows/x64/lwjgl.dll" : "windows/x86/lwjgl32.dll", null);
 				nativesDir = myFile.getParentFile();
+				loader.extractFile(is64Bit ? "windows/x64/glfw.dll" : "windows/x86/glfw32.dll", nativesDir.getName());
 				if (!Lwjgl3ApplicationConfiguration.disableAudio)
 					loader.extractFile(is64Bit ? "windows/x64/OpenAL.dll" : "windows/x86/OpenAL32.dll", nativesDir.getName());
 			} else if (isMac) {
 				nativesDir = loader.extractFile("macosx/x64/liblwjgl.dylib", null).getParentFile();
-				if (!Lwjgl3ApplicationConfiguration.disableAudio) loader.extractFile("macosx/x64/libopenal.dylib", nativesDir.getName());
+				loader.extractFile("windows/x64/libglfw.dylib", nativesDir.getName());
+				if (!Lwjgl3ApplicationConfiguration.disableAudio)
+					loader.extractFile("macosx/x64/libopenal.dylib", nativesDir.getName());
+				
 			} else if (isLinux) {
 				nativesDir = loader.extractFile(is64Bit ? "linux/x64/liblwjgl.so" : "linux/x86/liblwjgl32.so", null).getParentFile();
+				loader.extractFile(is64Bit ? "windows/x64/libglfw.so" : "windows/x86/libglfw32.so", nativesDir.getName());
 				if (!Lwjgl3ApplicationConfiguration.disableAudio)
 					loader.extractFile(is64Bit ? "linux/x64/libopenal.so" : "linux/x86/libopenal32.so", nativesDir.getName());
 			}

@@ -16,7 +16,6 @@
 
 package com.badlogic.gdx.backends.lwjgl3;
 
-import static org.lwjgl.glfw.Callbacks.glfwSetCallback;
 import static org.lwjgl.glfw.GLFW.*;
 
 import java.awt.Color;
@@ -159,7 +158,7 @@ public class Lwjgl3Input implements Input {
 		deltaX = 0;
 		deltaY = 0;
 		justTouched = false;
-		
+
 		if (keyJustPressed) {
 			keyJustPressed = false;
 			for (int i = 0; i < justPressedKeys.length; i++) {
@@ -292,6 +291,11 @@ public class Lwjgl3Input implements Input {
 		return false;
 	}
 
+	@Override
+	public boolean isCatchMenuKey () {
+		return false;
+	}
+
 	public void setCatchMenuKey (boolean catchMenu) {
 	}
 
@@ -316,22 +320,15 @@ public class Lwjgl3Input implements Input {
 	}
 
 	public void setCursorCatched (boolean captured) {
-		// TODO Not sure how is equal to lwgl3
-// glfwSetInputMode(app.graphics.window, GLFW_CURSOR, captured ? GLFW_CURSOR_CAPTURED : GLFW_CURSOR_NORMAL);
+		glfwSetInputMode(app.graphics.window, GLFW_CURSOR, captured ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
 	}
 
 	public boolean isCursorCatched () {
-		// TODO Not sure how is equal to lwgl3
-		return false;
-// return glfwGetInputMode(app.graphics.window, GLFW_CURSOR_MODE) == GLFW_CURSOR_CAPTURED;
+		return glfwGetInputMode(app.graphics.window, GLFW_CURSOR) == GLFW_CURSOR_HIDDEN;
 	}
 
 	public void setCursorPosition (int x, int y) {
 		glfwSetCursorPos(app.graphics.window, x, y);
-	}
-
-	@Override
-	public void setCursorImage (Pixmap pixmap, int xHotspot, int yHotspot) {
 	}
 
 	public void getTextInput (final TextInputListener listener, final String title, final String text, final String hint) {
@@ -881,7 +878,6 @@ public class Lwjgl3Input implements Input {
 				public void invoke (long window, double xpos, double ypos) {
 					mouseX = (int)xpos;
 					mouseY = (int)ypos;
-					System.out.println("PAS");
 					if (pressedButtons.size > 0)
 						processor.touchDragged(mouseX, mouseY, 0);
 					else
@@ -938,11 +934,11 @@ public class Lwjgl3Input implements Input {
 		}
 
 		public void addCallback () {
-			glfwSetCallback(app.graphics.window, mouseCallBack);
-			glfwSetCallback(app.graphics.window, cursorPosCallBack);
-			glfwSetCallback(app.graphics.window, scrollCallBack);
-			glfwSetCallback(app.graphics.window, characterCallBack);
-			glfwSetCallback(app.graphics.window, keyCallBack);
+			glfwSetMouseButtonCallback(app.graphics.window, mouseCallBack);
+			glfwSetCursorPosCallback(app.graphics.window, cursorPosCallBack);
+			glfwSetScrollCallback(app.graphics.window, scrollCallBack);
+			glfwSetCharCallback(app.graphics.window, characterCallBack);
+			glfwSetKeyCallback(app.graphics.window, keyCallBack);
 		}
 
 		public void removeCallback () {
@@ -963,5 +959,4 @@ public class Lwjgl3Input implements Input {
 		}
 
 	}
-
 }

@@ -810,15 +810,15 @@ class Lwjgl3GL20 implements com.badlogic.gdx.graphics.GL20 {
 	public void glVertexAttribPointer (int indx, int size, int type, boolean normalized, int stride, Buffer buffer) {
 		if (buffer instanceof ByteBuffer) {
 			if (type == GL_BYTE)
-				GL20.glVertexAttribPointer(indx, size, false, normalized, stride, (ByteBuffer)buffer);
+				GL20.glVertexAttribPointer(indx, size, type, normalized, stride, (ByteBuffer)buffer);
 			else if (type == GL_UNSIGNED_BYTE)
-				GL20.glVertexAttribPointer(indx, size, true, normalized, stride, (ByteBuffer)buffer);
+				GL20.glVertexAttribPointer(indx, size, type, normalized, stride, (ByteBuffer)buffer);
 			else if (type == GL_SHORT)
-				GL20.glVertexAttribPointer(indx, size, false, normalized, stride, ((ByteBuffer)buffer).asShortBuffer());
+				GL20.glVertexAttribPointer(indx, size, type, normalized, stride, ((ByteBuffer)buffer).asShortBuffer());
 			else if (type == GL_UNSIGNED_SHORT)
-				GL20.glVertexAttribPointer(indx, size, true, normalized, stride, ((ByteBuffer)buffer).asShortBuffer());
+				GL20.glVertexAttribPointer(indx, size, type, normalized, stride, ((ByteBuffer)buffer).asShortBuffer());
 			else if (type == GL_FLOAT)
-				GL20.glVertexAttribPointer(indx, size, normalized, stride, ((ByteBuffer)buffer).asFloatBuffer());
+				GL20.glVertexAttribPointer(indx, size, type, normalized, stride, ((ByteBuffer)buffer).asFloatBuffer());
 			else
 				throw new GdxRuntimeException(
 					"Can't use "
@@ -828,7 +828,7 @@ class Lwjgl3GL20 implements com.badlogic.gdx.graphics.GL20 {
 						+ " with this method. Use ByteBuffer and one of GL_BYTE, GL_UNSIGNED_BYTE, GL_SHORT, GL_UNSIGNED_SHORT or GL_FLOAT for type. Blame LWJGL");
 		} else if (buffer instanceof FloatBuffer) {
 			if (type == GL_FLOAT)
-				GL20.glVertexAttribPointer(indx, size, normalized, stride, (FloatBuffer)buffer);
+				GL20.glVertexAttribPointer(indx, size, type, normalized, stride, (FloatBuffer)buffer);
 			else
 				throw new GdxRuntimeException("Can't use " + buffer.getClass().getName() + " with type " + type
 					+ " with this method.");

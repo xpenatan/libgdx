@@ -1,14 +1,25 @@
 
 package com.badlogic.gdx.backends.lwjgl3;
 
-import static org.lwjgl.glfw.Callbacks.glfwSetCallback;
-import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.glfw.GLFW.glfwDestroyWindow;
+import static org.lwjgl.glfw.GLFW.glfwGetCurrentContext;
+import static org.lwjgl.glfw.GLFW.glfwInit;
+import static org.lwjgl.glfw.GLFW.glfwMakeContextCurrent;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowCloseCallback;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowFocusCallback;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowIconifyCallback;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowPosCallback;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowRefreshCallback;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowSizeCallback;
+import static org.lwjgl.glfw.GLFW.glfwShowWindow;
+import static org.lwjgl.glfw.GLFW.glfwSwapBuffers;
+import static org.lwjgl.glfw.GLFW.glfwTerminate;
+import static org.lwjgl.glfw.GLFW.glfwWaitEvents;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWMouseButtonCallback;
 import org.lwjgl.glfw.GLFWWindowCloseCallback;
 import org.lwjgl.glfw.GLFWWindowFocusCallback;
 import org.lwjgl.glfw.GLFWWindowIconifyCallback;
@@ -17,7 +28,6 @@ import org.lwjgl.glfw.GLFWWindowRefreshCallback;
 import org.lwjgl.glfw.GLFWWindowSizeCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GLContext;
 
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationListener;
@@ -29,7 +39,6 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.LifecycleListener;
 import com.badlogic.gdx.Net;
 import com.badlogic.gdx.Preferences;
-import com.badlogic.gdx.Input.Buttons;
 import com.badlogic.gdx.backends.lwjgl3.audio.OpenALAudio;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Clipboard;
@@ -49,7 +58,6 @@ public class Lwjgl3Application implements Application {
 	OpenALAudio audio;
 	Lwjgl3Files files;
 
-	GLContext context;
 	Lwjgl3Graphics graphics;
 	Lwjgl3Input input;
 	Lwjgl3Net net;
@@ -58,10 +66,12 @@ public class Lwjgl3Application implements Application {
 	private final Array<Runnable> executedRunnables = new Array();
 	private final Array<LifecycleListener> lifecycleListeners = new Array();
 	private final Map<String, Preferences> preferences = new HashMap();
+	private final Lwjgl3Clipboard clipboard = new Lwjgl3Clipboard();
 	private int logLevel = LOG_INFO;
 	volatile boolean running = true;
 	boolean isPaused;
 	protected String preferencesdir;
+	protected Files.FileType preferencesFileType;
 	private int foregroundFPS, backgroundFPS, hiddenFPS;
 	private boolean forceExit = false;
 	final ApplicationListener listener;
@@ -70,29 +80,28 @@ public class Lwjgl3Application implements Application {
 
 	boolean create = false;
 
-	boolean autoloop;
+	boolean useController;
 	int audioDeviceSimultaneousSources;
 	int audioDeviceBufferCount;
 	int audioDeviceBufferSize;
 
 	boolean init;
-	
+
 	int lastWidth;
 	int lastHeight;
 
 	public Lwjgl3Application (ApplicationListener listener, Lwjgl3ApplicationConfiguration config) {
-		this(listener, config, true);
+		this(listener, config, false);
 	}
 
-	/** Autoloop true creates a thread (will block on mac). False is usefull to use it with
-	 * {@link Lwjgl3WindowController} */
-	public Lwjgl3Application (ApplicationListener listener, final Lwjgl3ApplicationConfiguration config, boolean autoloop) {
+	/** useController false creates a thread (will block on mac). true is to use window creation with {@link Lwjgl3WindowController} */
+	public Lwjgl3Application (ApplicationListener listener, final Lwjgl3ApplicationConfiguration config, boolean useController) {
 		Lwjgl3NativesLoader.load();
 
 		if (glfwInit() != GL11.GL_TRUE) throw new IllegalStateException("Unable to initialize GLFW");
 
 		this.listener = listener;
-		this.autoloop = autoloop;
+		this.useController = useController;
 		initCallBacks();
 		input = new Lwjgl3Input(Lwjgl3Application.this, true);
 		audioDeviceSimultaneousSources = config.audioDeviceSimultaneousSources;
@@ -101,7 +110,8 @@ public class Lwjgl3Application implements Application {
 		backgroundFPS = config.backgroundFPS;
 		hiddenFPS = config.hiddenFPS;
 		foregroundFPS = config.foregroundFPS;
-
+		preferencesdir = config.preferencesDirectory;
+		preferencesFileType = config.preferencesFileType;
 		graphics = new Lwjgl3Graphics(Lwjgl3Application.this, config);
 
 		final Runnable appRunnable;
@@ -110,17 +120,16 @@ public class Lwjgl3Application implements Application {
 		appRunnable = new Runnable() {
 
 			public void run () {
-				
+
 				glfwMakeContextCurrent(graphics.window);
-				context = GLContext.createFromCurrent();
+				GL.createCapabilities();
 				graphics.initGL();
 				glfwShowWindow(graphics.window);
 				graphics.show();
-				
 
 				while (running) {
 					try {
-							loop(true);
+						loop(true);
 					} catch (Exception e) {
 						e.printStackTrace();
 						running = false;
@@ -141,7 +150,7 @@ public class Lwjgl3Application implements Application {
 					init = true;
 
 					graphics.initWindow();
-					
+
 					initStaticVariables();
 
 					input.addCallBacks();
@@ -164,7 +173,7 @@ public class Lwjgl3Application implements Application {
 			}
 		};
 
-		if (autoloop) {
+		if (!useController) {
 			if (Lwjgl3Graphics.isMac) {
 				mainRunnable.run();
 			} else
@@ -181,25 +190,23 @@ public class Lwjgl3Application implements Application {
 	GLFWWindowIconifyCallback iconifyCallBack;
 
 	Lwjgl3WindowListener windowListener;
-	
+
 	void initCallBacks () {
 		closeCallBack = new GLFWWindowCloseCallback() {
 			@Override
 			public void invoke (long window) {
 				exit();
-				
-				if(windowListener != null)
-					windowListener.exit(Lwjgl3Application.this);
+
+				if (windowListener != null) windowListener.exit(Lwjgl3Application.this);
 			}
 		};
 
 		sizeCallBack = new GLFWWindowSizeCallback() {
 			@Override
 			public void invoke (long window, int width, int height) {
-					graphics.sizeChanged(width, height);
-					
-					if(windowListener != null)
-						windowListener.size(Lwjgl3Application.this, width, height);
+				graphics.sizeChanged(width, height);
+
+				if (windowListener != null) windowListener.size(Lwjgl3Application.this, width, height);
 			}
 		};
 
@@ -207,15 +214,14 @@ public class Lwjgl3Application implements Application {
 
 			@Override
 			public void invoke (long window) {
-//				Lwjgl3WindowController.toRefresh = false; // simple sync logic to refresh window when there is a refresh call
-//				synchronized (Lwjgl3WindowController.SYNC) {
-//					loop();
-//					Lwjgl3WindowController.toRefresh = true;
-				
-//				glfwSwapBuffers(window);
-//				}
-				if(windowListener != null)
-					windowListener.refresh(Lwjgl3Application.this);
+// Lwjgl3WindowController.toRefresh = false; // simple sync logic to refresh window when there is a refresh call
+// synchronized (Lwjgl3WindowController.SYNC) {
+// loop();
+// Lwjgl3WindowController.toRefresh = true;
+
+// glfwSwapBuffers(window);
+// }
+				if (windowListener != null) windowListener.refresh(Lwjgl3Application.this);
 			}
 		};
 
@@ -225,9 +231,8 @@ public class Lwjgl3Application implements Application {
 				boolean focus = focused == GL11.GL_TRUE ? true : false;
 				if (focus) Lwjgl3WindowController.currentWindow = window;
 				graphics.foreground = focus;
-				
-				if(windowListener != null)
-					windowListener.focus(Lwjgl3Application.this, focus);
+
+				if (windowListener != null) windowListener.focus(Lwjgl3Application.this, focus);
 			}
 		};
 
@@ -235,9 +240,8 @@ public class Lwjgl3Application implements Application {
 			@Override
 			public void invoke (long window, int xpos, int ypos) {
 				graphics.positionChanged(xpos, ypos);
-				
-				if(windowListener != null)
-					windowListener.position(Lwjgl3Application.this, xpos, ypos);
+
+				if (windowListener != null) windowListener.position(Lwjgl3Application.this, xpos, ypos);
 			}
 		};
 
@@ -266,18 +270,18 @@ public class Lwjgl3Application implements Application {
 				}
 			} catch (Throwable t) {
 				log("Lwjgl3Application", "Couldn't initialize audio, disabling audio", t);
-				Lwjgl3ApplicationConfiguration.disableAudio = true;				
+				Lwjgl3ApplicationConfiguration.disableAudio = true;
 			}
 		}
 	}
 
 	void addCallBacks () {
-		glfwSetCallback(graphics.window, closeCallBack);
-		glfwSetCallback(graphics.window, sizeCallBack);
-		glfwSetCallback(graphics.window, refreshCallBack);
-		glfwSetCallback(graphics.window, focusCallBack);
-		glfwSetCallback(graphics.window, posCallBack);
-		glfwSetCallback(graphics.window, iconifyCallBack);
+		glfwSetWindowCloseCallback(graphics.window, closeCallBack);
+		glfwSetWindowSizeCallback(graphics.window, sizeCallBack);
+		glfwSetWindowRefreshCallback(graphics.window, refreshCallBack);
+		glfwSetWindowFocusCallback(graphics.window, focusCallBack);
+		glfwSetWindowPosCallback(graphics.window, posCallBack);
+		glfwSetWindowIconifyCallback(graphics.window, iconifyCallBack);
 	}
 
 	public void removeCallBacks () {
@@ -299,7 +303,7 @@ public class Lwjgl3Application implements Application {
 			Lwjgl3Application.this.listener.create();
 		}
 		input.update(); // becuase of the order of the glfwPollEvents() and input.update() logic. It needs to be after render
-		
+
 		int width = Math.max(1, graphics.getWidth());
 		int height = Math.max(1, graphics.getHeight());
 		if (lastWidth != width || lastHeight != height) {
@@ -308,7 +312,7 @@ public class Lwjgl3Application implements Application {
 			Gdx.gl.glViewport(0, 0, lastWidth, lastHeight);
 			listener.resize(width, height);
 		}
-		
+
 		boolean shouldRender = false;
 
 		if (executeRunnables()) shouldRender = true;
@@ -334,12 +338,12 @@ public class Lwjgl3Application implements Application {
 			else
 				targetFPS = backgroundFPS;
 		}
-		
+
 		input.justTouched = false;
 
 // becuase Gdx.##.justTouched() method wont work well.
 
-		if (autoloop) {
+		if (useController == false) {
 			if (targetFPS != 0) {
 				if (targetFPS == -1)
 					sleep(100);
@@ -359,8 +363,7 @@ public class Lwjgl3Application implements Application {
 	void render (long time, boolean swap) {
 		graphics.frameStart(time);
 		listener.render();
-		if(swap)
-			glfwSwapBuffers(graphics.window);
+		if (swap) glfwSwapBuffers(graphics.window);
 	}
 
 	public boolean executeRunnables () {
@@ -378,10 +381,10 @@ public class Lwjgl3Application implements Application {
 	void setGlobals () {
 		long window = glfwGetCurrentContext();
 
-		if(window != graphics.window)
-			glfwMakeContextCurrent(graphics.window); // for every call needs to make sure its context is set
-//		if(GL.getCurrent() != context)
-//			GL.setCurrent(context);
+		if (window != graphics.window) glfwMakeContextCurrent(graphics.window); // for every call needs to make sure its context is
+// set
+// if(GL.getCurrent() != context)
+// GL.setCurrent(context);
 
 		if (audio != null && Gdx.audio == null) Gdx.audio = audio;
 		if (files != null && Gdx.files == null) Gdx.files = files;
@@ -485,15 +488,14 @@ public class Lwjgl3Application implements Application {
 		if (preferences.containsKey(name))
 			return preferences.get(name);
 		else {
-			Preferences prefs = new Lwjgl3Preferences(name, this.preferencesdir);
+			Preferences prefs = new Lwjgl3Preferences(new Lwjgl3FileHandle(new File(preferencesdir, name), preferencesFileType));
 			preferences.put(name, prefs);
 			return prefs;
 		}
 	}
 
 	public Clipboard getClipboard () {
-		// TODO Auto-generated method stub
-		return null;
+		return clipboard;
 	}
 
 	public void postRunnable (Runnable runnable) {
@@ -502,16 +504,12 @@ public class Lwjgl3Application implements Application {
 			graphics.requestRendering();
 		}
 	}
-	
-	/**
-	 * Call this on listener window
-	 */
-	public void disposeListener()
-	{
-		if(disposed2)
-			return;
+
+	/** Call this on listener window */
+	public void disposeListener () {
+		if (disposed2) return;
 		disposed2 = true;
-		
+
 		synchronized (lifecycleListeners) {
 			for (LifecycleListener listener : lifecycleListeners) {
 				listener.pause();
@@ -521,11 +519,8 @@ public class Lwjgl3Application implements Application {
 		listener.pause();
 		listener.dispose();
 	}
-	
-	
-	/**
-	 * Call this on GLFW main thread.
-	 */
+
+	/** Call this on GLFW main thread. */
 	public void dispose () {
 		if (disposed) return;
 		exit();

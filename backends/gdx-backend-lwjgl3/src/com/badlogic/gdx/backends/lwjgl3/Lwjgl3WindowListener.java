@@ -1,8 +1,12 @@
 package com.badlogic.gdx.backends.lwjgl3;
 
+/** <B>EXPERIMENTAL</B> <BR>
+ * <BR>
+ * A simple controller that updates and control all GLFW window/Gdx Application. <br>
+ * 
+ * @author Natan Guilherme */
 public interface Lwjgl3WindowListener 
 {
-	
 	public void exit (Lwjgl3Application app);
 	public void size (Lwjgl3Application app, int width, int height);
 	public void refresh (Lwjgl3Application app);

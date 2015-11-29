@@ -22,24 +22,22 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Graphics;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Cursor;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GL30;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 import java.awt.Toolkit;
 import java.nio.ByteBuffer;
 
-import org.lwjgl.glfw.GLFWvidmode;
+import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GLContext;
 
-/**
- * An implementation of the {@link Graphics} interface based on GLFW.
+/** An implementation of the {@link Graphics} interface based on GLFW.
  * 
- * @author Nathan Sweet
- */
-public class Lwjgl3Graphics implements Graphics
-{
+ * @author Nathan Sweet */
+public class Lwjgl3Graphics implements Graphics {
 	static long contextShare = 0;
 	static final boolean isMac = System.getProperty("os.name").contains("OS X");
 	static final boolean isWindows = System.getProperty("os.name").contains("Windows");
@@ -66,11 +64,13 @@ public class Lwjgl3Graphics implements Graphics
 	private int frames, fps;
 
 	private Lwjgl3GL20 gl20;
+	private Lwjgl3GL30 gl30;
 
+	int overrideDensity;
+	boolean usingGL30;
 	Lwjgl3Application app;
 
-	public Lwjgl3Graphics(Lwjgl3Application app, Lwjgl3ApplicationConfiguration config)
-	{
+	public Lwjgl3Graphics (Lwjgl3Application app, Lwjgl3ApplicationConfiguration config) {
 
 		this.app = app;
 		// Store values from config.
@@ -93,54 +93,55 @@ public class Lwjgl3Graphics implements Graphics
 		width = config.width;
 		height = config.height;
 		fullscreen = config.fullscreen;
-
+		usingGL30 = config.useGL30;
 		
+		overrideDensity = config.overrideDensity;
 	}
-	
-	void initWindow()
-	{
-		
-		if (!createWindow(width, height, fullscreen))
-		{
+
+	void initWindow () {
+
+		if (!createWindow(width, height, fullscreen)) {
 			throw new GdxRuntimeException("Unable to create window: " + width + "x" + height + ", fullscreen: " + fullscreen);
 		}
 	}
 
-	public void initGL()
-	{
-		if(Gdx.gl == null)
-		{ // Not sure if GL object for every graphic will make a difference. If you know what problems it could occur please contact.
-		
+	public void initGL () {
+		if (Gdx.gl == null) { // Not sure if GL object for every graphic will make a difference. If you know what problems it could occur please contact.
+
 			// Create GL.
 			String version = GL11.glGetString(GL20.GL_VERSION);
 			glMajorVersion = Integer.parseInt("" + version.charAt(0));
 			glMinorVersion = Integer.parseInt("" + version.charAt(2));
-	
+
 			if (glMajorVersion <= 1)
 				throw new GdxRuntimeException("OpenGL 2.0 or higher with the FBO extension is required. OpenGL version: " + version);
-			if (glMajorVersion == 2 || version.contains("2.1"))
-			{
-				if (!supportsExtension("GL_EXT_framebuffer_object") && !supportsExtension("GL_ARB_framebuffer_object"))
-				{
-					throw new GdxRuntimeException("OpenGL 2.0 or higher with the FBO extension is required. OpenGL version: " + version + ", FBO extension: false");
+			if (glMajorVersion == 2 || version.contains("2.1")) {
+				if (!supportsExtension("GL_EXT_framebuffer_object") && !supportsExtension("GL_ARB_framebuffer_object")) {
+					throw new GdxRuntimeException("OpenGL 2.0 or higher with the FBO extension is required. OpenGL version: "
+						+ version + ", FBO extension: false");
 				}
 			}
+
+			if (usingGL30) {
+				gl30 = new Lwjgl3GL30();
+				gl20 = gl30;
+			} else {
+				gl20 = new Lwjgl3GL20();
+			}
 			
-			gl20 = new Lwjgl3GL20();
 			Gdx.gl = gl20;
 			Gdx.gl20 = gl20;
+			Gdx.gl30 = gl30;
 		}
-		
+
 		setVSync(vSync);
 	}
-	
-	private boolean createWindow(int width, int height, boolean fullscreen)
-	{
-		if (fullscreen && fullscreenMonitor == 0)
-			fullscreenMonitor = getWindowMonitor();
+
+	private boolean createWindow (int width, int height, boolean fullscreen) {
+		if (fullscreen && fullscreenMonitor == 0) fullscreenMonitor = getWindowMonitor();
 
 		glfwDefaultWindowHints();
-		
+
 		glfwWindowHint(GLFW_VISIBLE, 0);
 		glfwWindowHint(GLFW_RESIZABLE, resizable ? 1 : 0);
 		glfwWindowHint(GLFW_DECORATED, decorated ? 1 : 0);
@@ -156,19 +157,16 @@ public class Lwjgl3Graphics implements Graphics
 		// GLFW_CURSOR_MODE) == GLFW_CURSOR_CAPTURED;
 
 		long newWindow = 0;
-		
+
 		newWindow = glfwCreateWindow(width, height, title, fullscreen ? fullscreenMonitor : 0, contextShare);
-		if (newWindow == 0)
-			return false;
+		if (newWindow == 0) return false;
 		window = newWindow;
 		this.width = Math.max(1, width);
 		this.height = Math.max(1, height);
 
 		this.fullscreen = fullscreen;
-		if (!fullscreen)
-		{
-			if (x == -1 || y == -1)
-			{
+		if (!fullscreen) {
+			if (x == -1 || y == -1) {
 				DisplayMode mode = getDesktopDisplayMode();
 				x = (mode.width - width) / 2;
 				y = (mode.height - height) / 2;
@@ -179,19 +177,15 @@ public class Lwjgl3Graphics implements Graphics
 		// if (!mouseCaptured) glfwSetInputMode(window, GLFW_CURSOR_MODE,
 		// GLFW_CURSOR_NORMAL); // Prevent fullscreen from taking mouse.
 
-
 		return true;
 	}
 
-	void frameStart(long time)
-	{
-		if (lastTime == -1)
-			lastTime = time;
+	void frameStart (long time) {
+		if (lastTime == -1) lastTime = time;
 		deltaTime = (time - lastTime) / 1000000000.0f;
 		lastTime = time;
 
-		if (time - frameStart >= 1000000000)
-		{
+		if (time - frameStart >= 1000000000) {
 			fps = frames;
 			frames = 0;
 			frameStart = time;
@@ -200,114 +194,96 @@ public class Lwjgl3Graphics implements Graphics
 		frameId++;
 	}
 
-	void sizeChanged(int newWidth, int newHeight)
-	{
+	void sizeChanged (int newWidth, int newHeight) {
 
-		if (newWidth <= 0 || newHeight <= 0 || (newWidth == width && newHeight == height))
-			return;
+		if (newWidth <= 0 || newHeight <= 0 || (newWidth == width && newHeight == height)) return;
 
-		if (isMac)
-		{
+		if (isMac) {
 			glfwShowWindow(window); // This is required to refresh the
-									// NSOpenGLContext on OSX!
+			// NSOpenGLContext on OSX!
 		}
 		width = newWidth;
 		height = newHeight;
-//		app.setGlobals();
-//		
-//		Gdx.gl.glViewport(0, 0, width, height);
-//		ApplicationListener listener = Gdx.app.getApplicationListener();
+// app.setGlobals();
 //
-//		if (listener != null)
-//		{
-//		
-//			listener.resize(width, height);
-//		}
-//		requestRendering();
+// Gdx.gl.glViewport(0, 0, width, height);
+// ApplicationListener listener = Gdx.app.getApplicationListener();
+//
+// if (listener != null)
+// {
+//
+// listener.resize(width, height);
+// }
+// requestRendering();
 	}
 
-	void positionChanged(int x, int y)
-	{
+	void positionChanged (int x, int y) {
 		this.x = x;
 		this.y = y;
 	}
 
-	public boolean isGL20Available()
-	{
+	public boolean isGL20Available () {
 		return gl20 != null;
 	}
 
-	public GL20 getGL20()
-	{
+	public GL20 getGL20 () {
 		return gl20;
 	}
 
-	public int getWidth()
-	{
+	public int getWidth () {
 		return width;
 	}
 
-	public int getHeight()
-	{
+	public int getHeight () {
 		return height;
 	}
 
-	public long getFrameId()
-	{
+	public long getFrameId () {
 		return frameId;
 	}
 
-	public float getDeltaTime()
-	{
+	public float getDeltaTime () {
 		return deltaTime;
 	}
 
-	public float getRawDeltaTime()
-	{
+	public float getRawDeltaTime () {
 		return deltaTime;
 	}
 
-	public int getFramesPerSecond()
-	{
+	public int getFramesPerSecond () {
 		return fps;
 	}
 
-	public GraphicsType getType()
-	{
+	public GraphicsType getType () {
 		return GraphicsType.JGLFW;
 	}
 
-	public float getPpiX()
-	{
+	public float getPpiX () {
 		// return getWidth() / (glfwGetMonitorPhysicalWidth(getWindowMonitor())
 		// * 0.03937f); // mm to inches
 		return Toolkit.getDefaultToolkit().getScreenResolution();
 	}
 
-	public float getPpiY()
-	{
+	public float getPpiY () {
 		// return getHeight() /
 		// (glfwGetMonitorPhysicalHeight(getWindowMonitor()) * 0.03937f); // mm
 		// to inches
 		return Toolkit.getDefaultToolkit().getScreenResolution();
 	}
 
-	public float getPpcX()
-	{
+	public float getPpcX () {
 		// return getWidth() / (glfwGetMonitorPhysicalWidth(getWindowMonitor())
 		// / 10); // mm to cm
 		return Toolkit.getDefaultToolkit().getScreenResolution() / 2.54f;
 	}
 
-	public float getPpcY()
-	{
+	public float getPpcY () {
 		// return getHeight() /
 		// (glfwGetMonitorPhysicalHeight(getWindowMonitor()) / 10); // mm to cm
 		return Toolkit.getDefaultToolkit().getScreenResolution() / 2.54f;
 	}
 
-	public float getDensity()
-	{
+	public float getDensity () {
 		// long monitor = getWindowMonitor();
 		// float mmWidth = glfwGetMonitorPhysicalWidth(monitor);
 		// float mmHeight = glfwGetMonitorPhysicalHeight(monitor);
@@ -322,24 +298,19 @@ public class Lwjgl3Graphics implements Graphics
 		return Toolkit.getDefaultToolkit().getScreenResolution() / 160f;
 	}
 
-	public boolean supportsDisplayModeChange()
-	{
+	public boolean supportsDisplayModeChange () {
 		return true;
 	}
 
-	private long getWindowMonitor()
-	{
-		if (window != 0)
-		{
+	private long getWindowMonitor () {
+		if (window != 0) {
 			long monitor = glfwGetWindowMonitor(window);
-			if (monitor != 0)
-				return monitor;
+			if (monitor != 0) return monitor;
 		}
 		return glfwGetPrimaryMonitor();
 	}
 
-	public DisplayMode[] getDisplayModes()
-	{
+	public DisplayMode[] getDisplayModes () {
 		// Array<DisplayMode> modes = new Array();
 		// for (ByteBuffer byteBuffer : glfwGetVideoMode(getWindowMonitor()))
 		// {
@@ -351,33 +322,26 @@ public class Lwjgl3Graphics implements Graphics
 		return null;
 	}
 
-	public DisplayMode getDesktopDisplayMode()
-	{
-		ByteBuffer byteBuffer = glfwGetVideoMode(getWindowMonitor());
-		GLFWvidmode mode = new GLFWvidmode(byteBuffer);
-		return new JglfwDisplayMode(mode.getWidth(), mode.getHeight(), 0, mode.getRedBits() + mode.getGreenBits() + mode.getBlueBits());
+	public DisplayMode getDesktopDisplayMode () {
+		GLFWVidMode mode = glfwGetVideoMode(getWindowMonitor());
+		return new JglfwDisplayMode(mode.width(), mode.height(), 0, mode.redBits() + mode.greenBits() + mode.blueBits());
 	}
 
-	public boolean setDisplayMode(DisplayMode displayMode)
-	{
+	public boolean setDisplayMode (DisplayMode displayMode) {
 		bufferFormat = new BufferFormat( //
-		displayMode.bitsPerPixel == 16 ? 5 : 8, //
-		displayMode.bitsPerPixel == 16 ? 6 : 8, //
-		displayMode.bitsPerPixel == 16 ? 6 : 8, //
-		bufferFormat.a, bufferFormat.depth, bufferFormat.stencil, bufferFormat.samples, false);
+			displayMode.bitsPerPixel == 16 ? 5 : 8, //
+			displayMode.bitsPerPixel == 16 ? 6 : 8, //
+			displayMode.bitsPerPixel == 16 ? 6 : 8, //
+			bufferFormat.a, bufferFormat.depth, bufferFormat.stencil, bufferFormat.samples, false);
 		boolean success = createWindow(displayMode.width, displayMode.height, fullscreen);
-		if (success && fullscreen)
-			sizeChanged(displayMode.width, displayMode.height);
+		if (success && fullscreen) sizeChanged(displayMode.width, displayMode.height);
 		return success;
 	}
 
-	public boolean setDisplayMode(int width, int height, boolean fullscreen)
-	{
-		if (fullscreen || this.fullscreen)
-		{
+	public boolean setDisplayMode (int width, int height, boolean fullscreen) {
+		if (fullscreen || this.fullscreen) {
 			boolean success = createWindow(width, height, fullscreen);
-			if (success && fullscreen)
-				sizeChanged(width, height);
+			if (success && fullscreen) sizeChanged(width, height);
 			return success;
 		}
 
@@ -385,148 +349,126 @@ public class Lwjgl3Graphics implements Graphics
 		return true;
 	}
 
-	public void setTitle(String title)
-	{
-		if (title == null)
-			title = "";
+	public void setTitle (String title) {
+		if (title == null) title = "";
 		glfwSetWindowTitle(window, title);
 		this.title = title;
 	}
 
-	public void setVSync(boolean vsync)
-	{
+	public void setVSync (boolean vsync) {
 		this.vSync = vsync;
 		glfwSwapInterval(vsync ? 1 : 0);
 	}
 
-	public BufferFormat getBufferFormat()
-	{
+	public BufferFormat getBufferFormat () {
 		return bufferFormat;
 	}
 
-	public boolean supportsExtension(String extension)
-	{
+	public boolean supportsExtension (String extension) {
 		return glfwExtensionSupported(extension) == GL11.GL_TRUE ? true : false;
 	}
 
-	public void setContinuousRendering(boolean isContinuous)
-	{
+	public void setContinuousRendering (boolean isContinuous) {
 		this.isContinuous = isContinuous;
 	}
 
-	public boolean isContinuousRendering()
-	{
+	public boolean isContinuousRendering () {
 		return isContinuous;
 	}
 
-	public void requestRendering()
-	{
+	public void requestRendering () {
 		renderRequested = true;
 	}
 
-	public boolean isFullscreen()
-	{
+	public boolean isFullscreen () {
 		return fullscreen;
 	}
 
-	/**
-	 * Returns the JGLFW window handle. Note this should not be stored
-	 * externally as it may change if the window is recreated to enter/exit
-	 * fullscreen.
-	 */
-	public long getWindow()
-	{
+	/** Returns the JGLFW window handle. Note this should not be stored externally as it may change if the window is recreated to
+	 * enter/exit fullscreen. */
+	public long getWindow () {
 		return window;
 	}
 
-	public int getX()
-	{
+	public int getX () {
 		return x;
 	}
 
-	public int getY()
-	{
+	public int getY () {
 		return y;
 	}
 
-	public void setPosition(int x, int y)
-	{
+	public void setPosition (int x, int y) {
 		glfwSetWindowPos(window, x, y);
 	}
 
-	public void hide()
-	{
+	public void hide () {
 		visible = false;
 		glfwHideWindow(window);
 	}
 
-	public void show()
-	{
+	public void show () {
 		visible = true;
-		
+		System.out.println("Show");
 		Lwjgl3WindowController.currentWindow = window;
-//		glfwShowWindow(window);
+// glfwShowWindow(window);
 
 		Gdx.gl.glClearColor(initialBackgroundColor.r, initialBackgroundColor.g, initialBackgroundColor.b, initialBackgroundColor.a);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		glfwSwapBuffers(window);
 	}
 
-	public boolean isHidden()
-	{
+	public boolean isHidden () {
 		return !visible;
 	}
 
-	public boolean isMinimized()
-	{
+	public boolean isMinimized () {
 		return minimized;
 	}
 
-	public boolean isForeground()
-	{
+	public boolean isForeground () {
 		return foreground;
 	}
 
-	public void minimize()
-	{
+	public void minimize () {
 		glfwIconifyWindow(window);
 	}
 
-	public void restore()
-	{
+	public void restore () {
 		glfwRestoreWindow(window);
 	}
 
-	boolean shouldRender()
-	{
-		try
-		{
+	boolean shouldRender () {
+		try {
 			return renderRequested || isContinuous;
-		}
-		finally
-		{
+		} finally {
 			renderRequested = false;
 		}
 	}
 
-	static class JglfwDisplayMode extends DisplayMode
-	{
-		protected JglfwDisplayMode(int width, int height, int refreshRate, int bitsPerPixel)
-		{
+	static class JglfwDisplayMode extends DisplayMode {
+		protected JglfwDisplayMode (int width, int height, int refreshRate, int bitsPerPixel) {
 			super(width, height, refreshRate, bitsPerPixel);
 		}
 	}
 
 	@Override
-	public boolean isGL30Available()
-	{
-		return false;
+	public boolean isGL30Available () {
+		return gl30 != null;
 	}
 
 	@Override
-	public GL30 getGL30()
-	{
+	public GL30 getGL30 () {
+		return gl30;
+	}
+
+	@Override
+	public Cursor newCursor (Pixmap pixmap, int xHotspot, int yHotspot) {
 		return null;
+	}
+
+	@Override
+	public void setCursor (Cursor cursor) {
 	}
 
 }
